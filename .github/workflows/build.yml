@@ -1,0 +1,88 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $v = (Get-Item bin/Quadra.exe).VersionInfo.ProductVersion
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match ProductVersion $v (src/AssemblyInfo.cs)" }
+
+      - name: Upload unsigned exe
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          path: bin/Quadra.exe
+          archive: false
+
+  release:
+    # Runs only for version tags. Signs via SignPath once the repo variable
+    # SIGNPATH_ORGANIZATION_ID and secret SIGNPATH_API_TOKEN are configured;
+    # until then the release gets the unsigned CI build.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign with SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: quadra
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          skip-decompress: true
+          wait-for-completion: true
+          output-artifact-directory: dist
+
+      - name: Fetch unsigned build (signing not configured)
+        if: vars.SIGNPATH_ORGANIZATION_ID == ''
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = Get-ChildItem dist -Recurse -Filter Quadra.exe | Select-Object -First 1
+          if (-not $exe) { throw "Quadra.exe not found in dist" }
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+          $signed = if ("${{ vars.SIGNPATH_ORGANIZATION_ID }}") { "Signed via SignPath.io (certificate by SignPath Foundation)." } else { "**Unsigned build.** Windows SmartScreen may warn; Smart App Control will block it." }
+          $notes = @"
+          $signed
+
+          SHA-256: ``$hash``
+
+          See the [README](https://github.com/${{ github.repository }}#readme) for install, uninstall, and the [code signing policy](https://github.com/${{ github.repository }}#code-signing-policy).
+          "@
+          gh release create "${{ github.ref_name }}" $exe.FullName --title "Quadra ${{ github.ref_name }}" --notes $notes --verify-tag

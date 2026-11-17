@@ -9,7 +9,7 @@ $out = Join-Path $root 'bin'
 New-Item -ItemType Directory -Force $out | Out-Null
 $sources = (Get-ChildItem (Join-Path $root 'src') -Filter *.cs).FullName
 
-& $csc /nologo /target:winexe /optimize+ /warn:4 `
+& $csc /nologo /target:winexe /optimize+ /warn:4 /codepage:65001 `
     "/out:$(Join-Path $out 'Quadra.exe')" `
     "/win32manifest:$(Join-Path $root 'src\app.manifest')" `
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll `

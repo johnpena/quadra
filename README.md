@@ -3,6 +3,18 @@
 A keyboard-driven window manager for Windows, inspired by [Rectangle](https://github.com/rxhanson/Rectangle) for macOS.
 It runs in the system tray and moves the focused window into halves, quarters, thirds, and so on, using global shortcuts or by dragging the window to a screen edge.
 
+## Install
+
+Download `Quadra.exe` from the [latest release](https://github.com/johnpena/quadra/releases/latest), put it somewhere permanent (e.g. `%LOCALAPPDATA%\Programs\Quadra`), and run it. Release builds are produced by [GitHub Actions](.github/workflows/build.yml) from this repository. See the [code signing policy](#code-signing-policy).
+
+## Uninstall
+
+1. Tray menu → untick **Launch at login** (removes the `Quadra` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), then **Quit Quadra**.
+2. Delete `Quadra.exe`.
+3. Optionally delete your settings folder, `%APPDATA%\Quadra`.
+
+Quadra makes no other changes to your system.
+
 ## Build & run
 
 No SDK needed. It compiles with the C# compiler that ships with Windows (.NET Framework 4.x):
@@ -78,6 +90,21 @@ If a shortcut can't be parsed, or another app has already registered it, a tray 
 | `src/SnapDrag.cs` | Drag-to-snap hooks and the preview overlay |
 | `src/TrayApp.cs` | Tray icon, menu, launch at login, wiring |
 | `src/Config.cs` | INI load/save |
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+Only binaries built by this repository's GitHub Actions workflow from tagged commits are signed, and each signing request is manually approved.
+
+**Team roles**
+- Authors (committers): [John Peña (@johnpena)](https://github.com/johnpena)
+- Reviewers: [John Peña (@johnpena)](https://github.com/johnpena). Every pull request from a non-committer is reviewed before it is merged.
+- Approvers: [John Peña (@johnpena)](https://github.com/johnpena)
+
+## Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Quadra makes no network connections at all; its only stored data is its settings file at `%APPDATA%\Quadra\quadra.ini`.
 
 ## License
 
